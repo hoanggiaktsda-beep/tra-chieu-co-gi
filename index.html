@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Giờ này uống gì?</title>
+<meta name="description" content="Mở hòm, chốt ly nước. Case-opening kiểu CS:GO cho đồ uống Việt Nam.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg-night:#0a1418;
+    --bg-panel:#0f2027;
+    --bg-panel-2:#132a32;
+    --cream:#f4e9d8;
+    --cream-dim:#c9bda9;
+    --neon:#ff4d6d;
+    --lime:#9be564;
+    --tier-blue:#4fc3f7;
+    --tier-purple:#c084fc;
+    --tier-pink:#f472b6;
+    --tier-red:#ef4444;
+    --tier-gold:#facc15;
+    --radius:14px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:
+      radial-gradient(circle at 15% 0%, rgba(255,77,109,.10), transparent 45%),
+      radial-gradient(circle at 85% 10%, rgba(155,229,100,.08), transparent 40%),
+      var(--bg-night);
+    color:var(--cream);
+    font-family:'Inter',sans-serif;
+    min-height:100vh;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:980px;margin:0 auto;padding:36px 20px 80px;}
+
+  /* ---- Hero ---- */
+  .hero{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;flex-wrap:wrap;margin-bottom:34px;border-bottom:1px solid rgba(244,233,216,.12);padding-bottom:26px;}
+  .hero h1{
+    font-family:'Anton',sans-serif;
+    font-weight:400;
+    font-size:clamp(2.4rem,6vw,4.4rem);
+    line-height:.92;
+    margin:0;
+    letter-spacing:.5px;
+    color:var(--cream);
+  }
+  .hero h1 span{color:var(--neon);text-shadow:0 0 22px rgba(255,77,109,.55);}
+  .hero p{margin:10px 0 0;color:var(--cream-dim);font-size:1rem;max-width:38ch;}
+  .stall-badge{
+    font-size:.78rem;letter-spacing:.02em;color:var(--cream-dim);
+    border:1px solid rgba(244,233,216,.22);border-radius:999px;
+    padding:7px 14px;white-space:nowrap;
+  }
+
+  /* ---- Filters ---- */
+  .filters{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:26px;}
+  .filters button{
+    background:var(--bg-panel);border:1px solid rgba(244,233,216,.14);
+    color:var(--cream-dim);padding:9px 15px;border-radius:10px;
+    font:600 .82rem/1 'Inter',sans-serif;cursor:pointer;transition:border-color .15s,color .15s;
+  }
+  .filters button:hover{border-color:rgba(244,233,216,.35);color:var(--cream);}
+  .filters button.active{border-color:var(--lime);color:var(--lime);background:rgba(155,229,100,.08);}
+
+  /* ---- Case widget ---- */
+  .case-stage{
+    background:linear-gradient(180deg,var(--bg-panel),var(--bg-panel-2));
+    border:1px solid rgba(244,233,216,.1);
+    border-radius:20px;
+    padding:26px 22px 30px;
+    position:relative;
+    overflow:hidden;
+  }
+  .case-stage::before{
+    content:"";position:absolute;inset:0;
+    background:repeating-linear-gradient(90deg, rgba(244,233,216,.035) 0 1px, transparent 1px 42px);
+    pointer-events:none;
+  }
+  .reel-viewport{
+    position:relative;height:190px;overflow:hidden;border-radius:12px;
+    background:rgba(0,0,0,.28);
+    box-shadow:inset 0 0 40px rgba(0,0,0,.5);
+  }
+  .reel-viewport::after{
+    content:"";position:absolute;inset:0;
+    background:linear-gradient(90deg, var(--bg-panel) 0%, transparent 12%, transparent 88%, var(--bg-panel) 100%);
+    pointer-events:none; z-index:3;
+  }
+  .reel-marker{
+    position:absolute;left:50%;top:0;bottom:0;width:2px;transform:translateX(-50%);
+    background:var(--neon);z-index:4;box-shadow:0 0 10px var(--neon);
+  }
+  .reel-marker::before,.reel-marker::after{
+    content:"";position:absolute;left:50%;transform:translateX(-50%);
+    border-left:7px solid transparent;border-right:7px solid transparent;
+  }
+  .reel-marker::before{top:-1px;border-top:9px solid var(--neon);}
+  .reel-marker::after{bottom:-1px;border-bottom:9px solid var(--neon);}
+  .reel-strip{
+    position:absolute;top:0;left:0;height:100%;display:flex;gap:12px;padding:10px;
+    will-change:transform;
+  }
+  .tile{
+    flex:0 0 148px;height:100%;border-radius:10px;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;
+    background:rgba(244,233,216,.04);
+    border:1px solid var(--tier-color, rgba(244,233,216,.15));
+    box-shadow:0 0 0 rgba(0,0,0,0);
+  }
+  .tile .icon{font-size:2.4rem;filter:drop-shadow(0 0 10px var(--tier-color, transparent));}
+  .tile .name{font-size:.72rem;font-weight:700;text-align:center;padding:0 8px;color:var(--cream);line-height:1.2;}
+  .tile .price{font-size:.68rem;color:var(--cream-dim);}
+
+  .open-row{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-top:22px;flex-wrap:wrap;}
+  .odds-line{font-size:.78rem;color:var(--cream-dim);}
+  .odds-line b{color:var(--cream);}
+  .open-btn{
+    background:var(--neon);color:#1a0407;border:none;border-radius:12px;
+    font:800 1rem/1 'Inter',sans-serif;padding:16px 30px;cursor:pointer;
+    letter-spacing:.01em;box-shadow:0 10px 26px rgba(255,77,109,.28);
+    transition:transform .12s ease;
+  }
+  .open-btn:hover{transform:translateY(-1px);}
+  .open-btn:disabled{opacity:.55;cursor:not-allowed;transform:none;}
+
+  /* ---- Result ---- */
+  .result{
+    margin-top:24px;border-radius:16px;padding:24px;display:none;
+    border:1px solid var(--tier-color, rgba(244,233,216,.2));
+    background:radial-gradient(circle at 50% 0%, color-mix(in srgb, var(--tier-color, #444) 18%, transparent), rgba(255,255,255,.02));
+  }
+  .result.show{display:block;animation:pop .28s ease;}
+  @keyframes pop{from{opacity:0;transform:scale(.96);}to{opacity:1;transform:scale(1);}}
+  .result-top{display:flex;align-items:center;gap:16px;}
+  .result-top .icon{font-size:3.2rem;filter:drop-shadow(0 0 14px var(--tier-color));}
+  .result-top h2{margin:0;font-family:'Anton',sans-serif;font-weight:400;font-size:1.7rem;letter-spacing:.3px;}
+  .tier-chip{
+    display:inline-block;font-size:.68rem;font-weight:700;letter-spacing:.03em;
+    padding:3px 10px;border-radius:999px;margin-top:5px;
+    color:#151515;background:var(--tier-color);
+  }
+  .result-meta{color:var(--cream-dim);font-size:.85rem;margin-top:4px;}
+  .result-actions{display:flex;gap:10px;margin-top:18px;flex-wrap:wrap;}
+  .result-actions a{
+    text-decoration:none;font:600 .84rem/1 'Inter',sans-serif;padding:11px 16px;border-radius:10px;
+    display:inline-flex;align-items:center;gap:7px;
+  }
+  .btn-maps{background:rgba(244,233,216,.1);color:var(--cream);border:1px solid rgba(244,233,216,.25);}
+  .btn-grab{background:var(--lime);color:#12240a;}
+  .reroll{background:none;border:1px solid rgba(244,233,216,.25);color:var(--cream-dim);border-radius:10px;padding:11px 16px;font:600 .84rem/1 'Inter';cursor:pointer;}
+
+  footer{margin-top:46px;color:var(--cream-dim);font-size:.78rem;line-height:1.6;border-top:1px solid rgba(244,233,216,.1);padding-top:18px;}
+  footer a{color:var(--cream-dim);}
+
+  @media (prefers-reduced-motion: reduce){
+    .reel-strip{transition-duration:.01ms !important;}
+  }
+  @media (max-width:560px){
+    .reel-viewport{height:150px;}
+    .tile{flex-basis:118px;}
+    .tile .icon{font-size:1.9rem;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="hero">
+    <div>
+      <h1>Giờ này<br><span>uống gì?</span></h1>
+      <p>Mở hòm, chốt ly nước — kiểu case-opening CS:GO, nhưng cho 36 món đồ uống vỉa hè Việt Nam.</p>
+    </div>
+    <div class="stall-badge">Không thanh toán · không lưu dữ liệu</div>
+  </div>
+
+  <div class="filters">
+    <button class="filt-budget active" data-max="999999">Tất cả giá</button>
+    <button class="filt-budget" data-max="20000">≤ 20k</button>
+    <button class="filt-budget" data-max="40000">≤ 40k</button>
+    <button class="filt-budget" data-max="65000">≤ 65k</button>
+    <button class="filt-caffeine" data-off="true">Không caffeine</button>
+  </div>
+
+  <div class="case-stage">
+    <div class="reel-viewport">
+      <div class="reel-marker"></div>
+      <div class="reel-strip" id="reelStrip"></div>
+    </div>
+
+    <div class="open-row">
+      <div class="odds-line">Tỉ lệ hiếm: <b>xanh</b> 62.5% · <b>tím</b> 12.5% · <b>hồng</b> 2.5% · <b>đỏ</b> 0.5% · <b>vàng</b> 0.2% (renormalize theo bộ lọc)</div>
+      <button class="open-btn" id="openBtn">Mở hòm</button>
+    </div>
+
+    <div class="result" id="result">
+      <div class="result-top">
+        <div class="icon" id="resIcon">🥤</div>
+        <div>
+          <h2 id="resName">—</h2>
+          <div class="tier-chip" id="resTier">—</div>
+          <div class="result-meta" id="resMeta">—</div>
+        </div>
+      </div>
+      <div class="result-actions">
+        <a class="btn-maps" id="mapsLink" target="_blank" rel="noopener">📍 Tìm quán gần đây</a>
+        <a class="btn-grab" id="grabLink" target="_blank" rel="noopener">🛵 Đặt qua GrabFood</a>
+        <button class="reroll" id="rerollBtn">Mở hòm khác</button>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    Đây là bản làm lại trong trình duyệt, lấy cảm hứng từ cơ chế mở hòm vũ khí CS:GO (Valve) và
+    dự án <a href="https://github.com/nagisanzenin/truanayangi" target="_blank" rel="noopener">truanayangi</a> —
+    không phải engine hay backend của Valve. Không có thanh toán, không có timer ép buộc, không gửi vị trí.
+    Dữ liệu 36 đồ uống, giá tham khảo và biểu tượng do dự án này tự soạn.
+  </footer>
+</div>
+
+<script>
+(function(){
+
+  // ---------- Data ----------
+  // tier weight ratios mirror the classic CS:GO weapon-case tier ratio
+  const TIER_WEIGHT = { blue:625, purple:125, pink:25, red:5, gold:2 };
+  const TIER_COLOR  = {
+    blue:'#4fc3f7', purple:'#c084fc', pink:'#f472b6', red:'#ef4444', gold:'#facc15'
+  };
+  const TIER_LABEL = { blue:'Xanh', purple:'Tím', pink:'Hồng', red:'Đỏ', gold:'Vàng' };
+
+  const DRINKS = [
+    // ---- blue: pho bien, re ----
+    {name:'Trà đá', price:3000, tier:'blue', icon:'🧊', caffeine:false},
+    {name:'Trà tắc', price:10000, tier:'blue', icon:'🍋', caffeine:true},
+    {name:'Trà chanh', price:10000, tier:'blue', icon:'🍋', caffeine:true},
+    {name:'Nước lọc chanh', price:8000, tier:'blue', icon:'💧', caffeine:false},
+    {name:'Trà gừng', price:10000, tier:'blue', icon:'🫚', caffeine:false},
+    {name:'Trà atiso', price:12000, tier:'blue', icon:'🍵', caffeine:false},
+    {name:'Nước mía', price:12000, tier:'blue', icon:'🥤', caffeine:false},
+    {name:'Siro đá bào', price:10000, tier:'blue', icon:'🍧', caffeine:false},
+
+    // ---- purple ----
+    {name:'Cà phê đen đá', price:18000, tier:'purple', icon:'☕', caffeine:true},
+    {name:'Cà phê sữa đá', price:20000, tier:'purple', icon:'☕', caffeine:true},
+    {name:'Sữa đậu nành', price:15000, tier:'purple', icon:'🥛', caffeine:false},
+    {name:'Sữa chua đá', price:18000, tier:'purple', icon:'🍦', caffeine:false},
+    {name:'Nước dừa tươi', price:20000, tier:'purple', icon:'🥥', caffeine:false},
+    {name:'Cacao sữa đá', price:22000, tier:'purple', icon:'🍫', caffeine:true},
+    {name:'Trà đào túi lọc', price:18000, tier:'purple', icon:'🍑', caffeine:true},
+    {name:'Chanh muối', price:15000, tier:'purple', icon:'🍋', caffeine:false},
+
+    // ---- pink ----
+    {name:'Trà sữa trân châu', price:30000, tier:'pink', icon:'🧋', caffeine:true},
+    {name:'Sinh tố bơ', price:30000, tier:'pink', icon:'🥑', caffeine:false},
+    {name:'Sinh tố xoài', price:28000, tier:'pink', icon:'🥭', caffeine:false},
+    {name:'Nước ép cam', price:30000, tier:'pink', icon:'🍊', caffeine:false},
+    {name:'Chè đậu xanh', price:25000, tier:'pink', icon:'🍮', caffeine:false},
+    {name:'Chè ba màu', price:25000, tier:'pink', icon:'🍨', caffeine:false},
+    {name:'Trà đào cam sả', price:35000, tier:'pink', icon:'🍑', caffeine:true},
+    {name:'Bạc xỉu', price:25000, tier:'pink', icon:'☕', caffeine:true},
+
+    // ---- red ----
+    {name:'Cà phê trứng', price:45000, tier:'red', icon:'☕', caffeine:true},
+    {name:'Chè khúc bạch', price:45000, tier:'red', icon:'🍨', caffeine:false},
+    {name:'Chè Thái', price:40000, tier:'red', icon:'🍨', caffeine:false},
+    {name:'Matcha đá xay', price:55000, tier:'red', icon:'🍵', caffeine:true},
+    {name:'Trà sữa full topping', price:50000, tier:'red', icon:'🧋', caffeine:true},
+    {name:'Cold brew', price:55000, tier:'red', icon:'☕', caffeine:true},
+    {name:'Nước ép detox', price:45000, tier:'red', icon:'🥗', caffeine:false},
+    {name:'Chè cung đình Huế', price:50000, tier:'red', icon:'🍮', caffeine:false},
+
+    // ---- gold: dat, hiem ----
+    {name:'Cà phê chồn', price:89000, tier:'gold', icon:'☕', caffeine:true},
+    {name:'Latte single-origin', price:75000, tier:'gold', icon:'☕', caffeine:true},
+    {name:'Trà sữa premium full topping', price:79000, tier:'gold', icon:'🧋', caffeine:true},
+    {name:'Chè sen long nhãn cao cấp', price:95000, tier:'gold', icon:'🌸', caffeine:false},
+  ];
+
+  const fmtPrice = p => p.toLocaleString('vi-VN') + 'đ';
+
+  // ---------- Filter state ----------
+  let maxBudget = 999999;
+  let noCaffeineOnly = false;
+
+  function getPool(){
+    return DRINKS.filter(d => d.price <= maxBudget && (!noCaffeineOnly || !d.caffeine));
+  }
+
+  // ---------- Weighted pick with renormalization ----------
+  function pickWinner(pool){
+    const tiersPresent = {};
+    pool.forEach(d => { tiersPresent[d.tier] = (tiersPresent[d.tier]||0) + 1; });
+
+    const weighted = pool.map(d => ({
+      drink: d,
+      weight: TIER_WEIGHT[d.tier] / tiersPresent[d.tier]
+    }));
+    const total = weighted.reduce((s,w) => s + w.weight, 0);
+    let r = Math.random() * total;
+    for (const w of weighted){
+      r -= w.weight;
+      if (r <= 0) return w.drink;
+    }
+    return weighted[weighted.length-1].drink;
+  }
+
+  // ---------- Reel building ----------
+  const TILE_W = 148, GAP = 12, STEP = TILE_W + GAP;
+  const WINNER_INDEX = 44;   // fixed slot the strip lands on
+  const STRIP_LEN = 56;
+
+  function buildStrip(pool, winner){
+    const strip = [];
+    let lastTier = null;
+    for (let i = 0; i < STRIP_LEN; i++){
+      let d;
+      if (i === WINNER_INDEX){
+        d = winner;
+      } else {
+        do { d = pool[Math.floor(Math.random()*pool.length)]; }
+        while (d.tier === lastTier && Math.random() < 0.85);
+      }
+      lastTier = d.tier;
+      strip.push(d);
+    }
+    return strip;
+  }
+
+  function renderStrip(strip){
+    const el = document.getElementById('reelStrip');
+    el.innerHTML = '';
+    el.style.transform = 'translateX(0px)';
+    el.style.transition = 'none';
+    strip.forEach(d => {
+      const tile = document.createElement('div');
+      tile.className = 'tile';
+      tile.style.setProperty('--tier-color', TIER_COLOR[d.tier]);
+      tile.innerHTML = `<div class="icon">${d.icon}</div><div class="name">${d.name}</div><div class="price">${fmtPrice(d.price)}</div>`;
+      el.appendChild(tile);
+    });
+    return el;
+  }
+
+  // ---------- Init reel (idle preview) ----------
+  let currentPool = getPool();
+  renderStrip(buildStrip(currentPool, currentPool[Math.floor(Math.random()*currentPool.length)]));
+
+  // ---------- Filters wiring ----------
+  document.querySelectorAll('.filt-budget').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.filt-budget').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      maxBudget = Number(btn.dataset.max);
+      currentPool = getPool();
+      renderStrip(buildStrip(currentPool, currentPool[Math.floor(Math.random()*currentPool.length)]));
+      document.getElementById('result').classList.remove('show');
+    });
+  });
+  const caffeineBtn = document.querySelector('.filt-caffeine');
+  caffeineBtn.addEventListener('click', () => {
+    noCaffeineOnly = !noCaffeineOnly;
+    caffeineBtn.classList.toggle('active', noCaffeineOnly);
+    currentPool = getPool();
+    renderStrip(buildStrip(currentPool, currentPool[Math.floor(Math.random()*currentPool.length)]));
+    document.getElementById('result').classList.remove('show');
+  });
+
+  // ---------- Sound (synthesized, no external assets) ----------
+  let actx;
+  function pop(){
+    try{
+      actx = actx || new (window.AudioContext||window.webkitAudioContext)();
+      const o = actx.createOscillator(), g = actx.createGain();
+      o.type='sine'; o.frequency.setValueAtTime(880, actx.currentTime);
+      o.frequency.exponentialRampToValueAtTime(440, actx.currentTime+0.18);
+      g.gain.setValueAtTime(0.08, actx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.0001, actx.currentTime+0.22);
+      o.connect(g); g.connect(actx.destination);
+      o.start(); o.stop(actx.currentTime+0.22);
+    }catch(e){}
+  }
+
+  // ---------- Open flow ----------
+  const openBtn = document.getElementById('openBtn');
+  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  function showResult(drink){
+    const c = TIER_COLOR[drink.tier];
+    const res = document.getElementById('result');
+    res.style.setProperty('--tier-color', c);
+    document.getElementById('resIcon').textContent = drink.icon;
+    document.getElementById('resName').textContent = drink.name;
+    document.getElementById('resTier').textContent = TIER_LABEL[drink.tier] + ' · ' + fmtPrice(drink.price);
+    document.getElementById('resTier').style.background = c;
+    document.getElementById('resMeta').textContent = drink.caffeine ? 'Có caffeine' : 'Không caffeine';
+    const q = encodeURIComponent(drink.name + ' quán gần đây');
+    document.getElementById('mapsLink').href = `https://www.google.com/maps/search/?api=1&query=${q}`;
+    document.getElementById('grabLink').href = `https://food.grab.com/vn/vi/search?keyword=${encodeURIComponent(drink.name)}`;
+    res.classList.add('show');
+    pop();
+  }
+
+  function openCase(){
+    openBtn.disabled = true;
+    document.getElementById('result').classList.remove('show');
+    currentPool = getPool();
+    const winner = pickWinner(currentPool);
+    const strip = buildStrip(currentPool, winner);
+    const el = renderStrip(strip);
+
+    const viewportW = el.parentElement.clientWidth;
+    const landingJitter = (0.10 + Math.random()*0.80) * TILE_W; // 10-90% of the winning tile
+    const targetX = -(WINNER_INDEX * STEP + TILE_W/2 - viewportW/2) - (landingJitter - TILE_W/2);
+
+    if (reduced){
+      // keep timing, suppress reel motion
+      el.style.opacity = '0.35';
+      setTimeout(() => {
+        el.style.transform = `translateX(${targetX}px)`;
+        el.style.opacity = '1';
+      }, 50);
+      setTimeout(() => { showResult(winner); openBtn.disabled = false; }, 900);
+      return;
+    }
+
+    // 2.3s lead-in (case "charges up"), 0.1s prep, then 6s scroll
+    openBtn.textContent = 'Đang mở...';
+    setTimeout(() => {
+      el.style.transition = `transform 6s cubic-bezier(0.075, 0.82, 0.165, 1)`;
+      requestAnimationFrame(() => { el.style.transform = `translateX(${targetX}px)`; });
+    }, 2400);
+
+    setTimeout(() => {
+      showResult(winner);
+      openBtn.disabled = false;
+      openBtn.textContent = 'Mở hòm';
+    }, 2400 + 6000);
+  }
+
+  openBtn.addEventListener('click', openCase);
+  document.getElementById('rerollBtn').addEventListener('click', openCase);
+
+})();
+</script>
+</body>
+</html>
