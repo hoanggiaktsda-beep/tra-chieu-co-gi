@@ -107,14 +107,17 @@
   }
   .tile{
     flex:0 0 148px;height:100%;border-radius:10px;
-    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;
     background:rgba(244,233,216,.04);
     border:1px solid var(--tier-color, rgba(244,233,216,.15));
     box-shadow:0 0 0 rgba(0,0,0,0);
+    padding:6px 0 8px;
   }
-  .tile .icon{font-size:2.4rem;filter:drop-shadow(0 0 10px var(--tier-color, transparent));}
+  .tile .icon{width:64px;height:78px;filter:drop-shadow(0 0 8px var(--tier-color, transparent));}
+  .tile .icon svg{width:100%;height:100%;display:block;}
   .tile .name{font-size:.72rem;font-weight:700;text-align:center;padding:0 8px;color:var(--cream);line-height:1.2;}
   .tile .price{font-size:.68rem;color:var(--cream-dim);}
+  .drink-svg{overflow:visible;}
 
   .open-row{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-top:22px;flex-wrap:wrap;}
   .odds-line{font-size:.78rem;color:var(--cream-dim);}
@@ -137,7 +140,8 @@
   .result.show{display:block;animation:pop .28s ease;}
   @keyframes pop{from{opacity:0;transform:scale(.96);}to{opacity:1;transform:scale(1);}}
   .result-top{display:flex;align-items:center;gap:16px;}
-  .result-top .icon{font-size:3.2rem;filter:drop-shadow(0 0 14px var(--tier-color));}
+  .result-top .icon{width:92px;height:110px;flex:none;filter:drop-shadow(0 0 12px var(--tier-color));}
+  .result-top .icon svg{width:100%;height:100%;display:block;}
   .result-top h2{margin:0;font-family:'Anton',sans-serif;font-weight:400;font-size:1.7rem;letter-spacing:.3px;}
   .tier-chip{
     display:inline-block;font-size:.68rem;font-weight:700;letter-spacing:.03em;
@@ -163,7 +167,7 @@
   @media (max-width:560px){
     .reel-viewport{height:150px;}
     .tile{flex-basis:118px;}
-    .tile .icon{font-size:1.9rem;}
+    .tile .icon{width:48px;height:60px;}
   }
 </style>
 </head>
@@ -199,7 +203,7 @@
 
     <div class="result" id="result">
       <div class="result-top">
-        <div class="icon" id="resIcon">🥤</div>
+        <div class="icon" id="resIcon"></div>
         <div>
           <h2 id="resName">—</h2>
           <div class="tier-chip" id="resTier">—</div>
@@ -233,52 +237,244 @@
   };
   const TIER_LABEL = { blue:'Xanh', purple:'Tím', pink:'Hồng', red:'Đỏ', gold:'Vàng' };
 
+  // ---------- Icon generator: hand-drawn SVG per drink (no photos, no external assets) ----------
+  const CUP_BOTTOM_Y = 104, CUP_TOP_Y = 40;
+  const CUP_BOTTOM_W = 32, CUP_TOP_W = 56;
+
+  function widthAtY(y){
+    const t = (CUP_BOTTOM_Y - y) / (CUP_BOTTOM_Y - CUP_TOP_Y);
+    return CUP_BOTTOM_W + t * (CUP_TOP_W - CUP_BOTTOM_W);
+  }
+  function edgesAtY(y){ const w = widthAtY(y); return [50 - w/2, 50 + w/2]; }
+  function yAtLevel(level){ return CUP_BOTTOM_Y - level * (CUP_BOTTOM_Y - CUP_TOP_Y); }
+
+  function trapezoid(yBottom, yTop, fill, opacity){
+    const [bl, br] = edgesAtY(yBottom);
+    const [tl, tr] = edgesAtY(yTop);
+    return `<polygon points="${bl},${yBottom} ${br},${yBottom} ${tr},${yTop} ${tl},${yTop}" fill="${fill}" ${opacity ? `opacity="${opacity}"` : ''}/>`;
+  }
+
+  function cupOutline(rimGold){
+    const [bl, br] = edgesAtY(CUP_BOTTOM_Y);
+    const [tl, tr] = edgesAtY(CUP_TOP_Y);
+    const stroke = rimGold ? '#e8c766' : 'rgba(244,233,216,0.55)';
+    return `<polygon points="${bl},${CUP_BOTTOM_Y} ${br},${CUP_BOTTOM_Y} ${tr},${CUP_TOP_Y} ${tl},${CUP_TOP_Y}" fill="rgba(255,255,255,0.05)" stroke="${stroke}" stroke-width="${rimGold?2:1.6}"/>
+      <ellipse cx="50" cy="${CUP_TOP_Y}" rx="${(tr-tl)/2}" ry="4.5" fill="rgba(255,255,255,0.06)" stroke="${stroke}" stroke-width="${rimGold?2:1.6}"/>`;
+  }
+
+  function iceCubes(topY){
+    return [[-14,4],[6,8],[-4,-4]].map(([dx,dy],i)=>{
+      const cx = 50+dx, cy = topY+dy;
+      return `<rect x="${cx-6}" y="${cy-6}" width="12" height="12" rx="2" fill="rgba(255,255,255,0.55)" stroke="rgba(255,255,255,0.8)" stroke-width="0.6" transform="rotate(${15*i-10} ${cx} ${cy})"/>`;
+    }).join('');
+  }
+  function bobaRow(){
+    const cy = CUP_BOTTOM_Y - 8;
+    return [38,45,52,59,66].map(x=>`<circle cx="${x}" cy="${cy + (x%2===0?2:-1)}" r="3.4" fill="#241608"/>`).join('');
+  }
+  function jellyBits(colors){
+    return [40,48,56,64].map((x,i)=>`<rect x="${x-4}" y="${CUP_BOTTOM_Y-14-((i%2)*6)}" width="8" height="8" rx="2" fill="${colors[i%colors.length]}" opacity="0.9"/>`).join('');
+  }
+  function foamBlob(topY, color){
+    const w = widthAtY(topY);
+    return `<path d="M ${50-w/2+2},${topY+2} C ${50-w/4},${topY-8} ${50-w/6},${topY+4} 50,${topY-3} C ${50+w/6},${topY-8} ${50+w/4},${topY+3} ${50+w/2-2},${topY+2} L ${50+w/2-2},${topY+9} L ${50-w/2+2},${topY+9} Z" fill="${color}"/>`;
+  }
+  function straw(wide, color, liquidTopY){
+    const w = wide ? 5 : 2.4;
+    return `<rect x="${58-w/2}" y="14" width="${w}" height="${liquidTopY-4}" rx="${w/2}" fill="${color}" stroke="rgba(0,0,0,0.15)" stroke-width="0.5" transform="rotate(-6 58 40)"/>`;
+  }
+  function domeLid(){
+    const [tl,tr] = edgesAtY(CUP_TOP_Y);
+    return `<path d="M ${tl-2},${CUP_TOP_Y} Q 50,${CUP_TOP_Y-16} ${tr+2},${CUP_TOP_Y} Z" fill="rgba(255,255,255,0.14)" stroke="rgba(244,233,216,0.5)" stroke-width="1.4"/>
+      <circle cx="58" cy="${CUP_TOP_Y-8}" r="2.6" fill="rgba(0,0,0,0.25)"/>`;
+  }
+  function saltRim(){
+    const [tl,tr] = edgesAtY(CUP_TOP_Y);
+    let s = '';
+    for(let x=tl; x<=tr; x+=4){ s += `<circle cx="${x}" cy="${CUP_TOP_Y-1}" r="1" fill="#ffffff"/>`; }
+    return s;
+  }
+  function garnish(type, cx, cy){
+    switch(type){
+      case 'lemon': return `<circle cx="${cx}" cy="${cy}" r="7" fill="#e8d34a" stroke="#c9a92e" stroke-width="1"/>
+        <g stroke="#fffbe6" stroke-width="0.9">
+          <line x1="${cx}" y1="${cy-6}" x2="${cx}" y2="${cy+6}"/>
+          <line x1="${cx-5.2}" y1="${cy-3}" x2="${cx+5.2}" y2="${cy+3}"/>
+          <line x1="${cx-5.2}" y1="${cy+3}" x2="${cx+5.2}" y2="${cy-3}"/>
+        </g>`;
+      case 'kumquat': return `<circle cx="${cx}" cy="${cy}" r="6" fill="#f2a93c" stroke="#c97e1f" stroke-width="1"/>`;
+      case 'peach': return `<path d="M ${cx-7},${cy} a7,7 0 1,0 14,0 a7,7 0 1,0 -14,0" fill="#f0a15f"/>
+        <path d="M ${cx},${cy-7} Q ${cx-2},${cy-3} ${cx},${cy}" stroke="#c9743a" stroke-width="1" fill="none"/>`;
+      case 'ginger': return `<ellipse cx="${cx}" cy="${cy}" rx="7" ry="4.5" fill="#e6c98a" stroke="#c9a05a" stroke-width="1"/>`;
+      case 'mint': return `<path d="M ${cx},${cy+6} Q ${cx-8},${cy} ${cx},${cy-7} Q ${cx+8},${cy} ${cx},${cy+6} Z" fill="#6fae3e"/>
+        <line x1="${cx}" y1="${cy+5}" x2="${cx}" y2="${cy-6}" stroke="#4c7d29" stroke-width="0.8"/>`;
+      case 'flower': return [0,72,144,216,288].map(a=>{
+          const rad=a*Math.PI/180, px=cx+Math.cos(rad)*5, py=cy+Math.sin(rad)*5;
+          return `<circle cx="${px}" cy="${py}" r="3.3" fill="#c98cc9"/>`;
+        }).join('') + `<circle cx="${cx}" cy="${cy}" r="2.6" fill="#f2d94e"/>`;
+      case 'goji': return `<ellipse cx="${cx-3}" cy="${cy}" rx="2.6" ry="4" fill="#e05555"/><ellipse cx="${cx+3}" cy="${cy+2}" rx="2.6" ry="4" fill="#e05555"/>`;
+      case 'lotus': return [-1,0,1].map(i=>`<ellipse cx="${cx+i*5}" cy="${cy-Math.abs(i)*2}" rx="4.5" ry="7" fill="#f3c8d6" opacity="0.9" transform="rotate(${i*18} ${cx+i*5} ${cy})"/>`).join('') + `<circle cx="${cx}" cy="${cy}" r="2.4" fill="#e8c766"/>`;
+      default: return '';
+    }
+  }
+  function svgWrap(inner){ return `<svg viewBox="0 0 100 120" class="drink-svg" xmlns="http://www.w3.org/2000/svg">${inner}</svg>`; }
+
+  function renderCup(cfg){
+    const level = cfg.level ?? 0.6;
+    const liquidTopY = yAtLevel(level);
+    let liquidSvg = '';
+    if (cfg.layers){
+      let cum = 0;
+      for (const [color, frac] of cfg.layers){
+        const yBottomBand = yAtLevel(cum); cum += frac; const yTopBand = yAtLevel(cum);
+        liquidSvg += trapezoid(yBottomBand, yTopBand, color);
+      }
+    } else {
+      liquidSvg = trapezoid(CUP_BOTTOM_Y, liquidTopY, cfg.liquid, cfg.liquidOpacity);
+    }
+    let extra = '';
+    if (cfg.boba) extra += bobaRow();
+    if (cfg.jellyColors) extra += jellyBits(cfg.jellyColors);
+    if (cfg.ice) extra += iceCubes(liquidTopY);
+    if (cfg.foam) extra += foamBlob(liquidTopY, cfg.foam);
+    if (cfg.rimSalt) extra += saltRim();
+    const strawSvg = cfg.straw ? straw(cfg.strawWide, cfg.straw, liquidTopY) : '';
+    const lidSvg = cfg.dome ? domeLid() : '';
+    const garnishSvg = cfg.garnish ? garnish(cfg.garnish, edgesAtY(CUP_TOP_Y)[1]+2, CUP_TOP_Y+2) : '';
+    return svgWrap(`${liquidSvg}${extra}${cupOutline(cfg.rimGold)}${lidSvg}${strawSvg}${garnishSvg}`);
+  }
+
+  function renderBowl(cfg){
+    const base = cfg.base || '#eee0b8';
+    let inner = `<ellipse cx="50" cy="88" rx="34" ry="10" fill="#1c2b31"/>
+      <path d="M 14,60 Q 50,44 86,60 L 80,90 Q 50,102 20,90 Z" fill="rgba(255,255,255,0.06)" stroke="${cfg.rimGold?'#e8c766':'rgba(244,233,216,0.5)'}" stroke-width="${cfg.rimGold?2:1.5}"/>
+      <ellipse cx="50" cy="62" rx="34" ry="11" fill="${base}"/>`;
+    if (cfg.jellyColors){
+      const pts = [[36,60],[46,64],[56,59],[64,63],[42,68],[58,68]];
+      inner += pts.map(([x,y],i)=>`<rect x="${x-4}" y="${y-4}" width="8" height="8" rx="2" fill="${cfg.jellyColors[i%cfg.jellyColors.length]}" opacity="0.92"/>`).join('');
+    }
+    if (cfg.beans){
+      inner += [[38,60],[45,63],[52,59],[60,62],[44,66],[56,65]].map(([x,y])=>`<circle cx="${x}" cy="${y}" r="2.6" fill="#c9c94a"/>`).join('');
+    }
+    if (cfg.topping){
+      inner += `<path d="M 30,58 Q 50,50 70,58 Q 50,54 30,58 Z" fill="${cfg.topping}" opacity="0.85"/>`;
+    }
+    if (cfg.garnish) inner += garnish(cfg.garnish, 60, 56);
+    return svgWrap(inner);
+  }
+
+  function renderCoconut(){
+    return svgWrap(`<ellipse cx="50" cy="78" rx="34" ry="26" fill="#5a3c22"/>
+      <ellipse cx="50" cy="78" rx="34" ry="26" fill="none" stroke="#3d2716" stroke-width="1.4"/>
+      <path d="M 22,64 Q 50,50 78,64 Q 50,58 22,64 Z" fill="#cbb37a"/>
+      <ellipse cx="50" cy="63" rx="27" ry="9" fill="#e7d9ab"/>
+      <rect x="54" y="24" width="4" height="42" rx="2" fill="#f4e9d8" transform="rotate(-10 56 45)"/>
+      <path d="M 30,72 Q 50,78 70,72" stroke="#3d2716" stroke-width="1" fill="none" opacity="0.5"/>
+      <path d="M 26,86 Q 50,92 74,86" stroke="#3d2716" stroke-width="1" fill="none" opacity="0.5"/>`);
+  }
+
+  function renderSmallcup(cfg){
+    let inner = `<ellipse cx="50" cy="100" rx="36" ry="7" fill="rgba(255,255,255,0.12)" stroke="${cfg.rimGold?'#e8c766':'rgba(244,233,216,0.4)'}" stroke-width="1.2"/>
+      <polygon points="34,92 66,92 61,54 39,54" fill="rgba(255,255,255,0.05)" stroke="${cfg.rimGold?'#e8c766':'rgba(244,233,216,0.55)'}" stroke-width="${cfg.rimGold?2:1.6}"/>
+      <path d="M 66,62 Q 78,64 74,76 Q 71,84 62,82" fill="none" stroke="${cfg.rimGold?'#e8c766':'rgba(244,233,216,0.55)'}" stroke-width="2"/>
+      <polygon points="40,90 60,90 57,60 43,60" fill="${cfg.liquid}"/>`;
+    if (cfg.foamSwirl){
+      inner += `<path d="M 43,60 Q 50,55 57,60 Q 50,58 43,60" fill="${cfg.foam}"/>
+        <path d="M 46,58 Q 50,56 54,58" stroke="#c9982e" stroke-width="0.8" fill="none"/>`;
+    }
+    return svgWrap(inner);
+  }
+
+  function drinkSVG(cfg){
+    if (cfg.vessel === 'bowl') return renderBowl(cfg);
+    if (cfg.vessel === 'coconut') return renderCoconut(cfg);
+    if (cfg.vessel === 'smallcup') return renderSmallcup(cfg);
+    return renderCup(cfg);
+  }
+
+  // ---------- Data: 36 drinks, each with a specific hand-drawn art config ----------
   const DRINKS = [
     // ---- blue: pho bien, re ----
-    {name:'Trà đá', price:3000, tier:'blue', icon:'🧊', caffeine:false},
-    {name:'Trà tắc', price:10000, tier:'blue', icon:'🍋', caffeine:true},
-    {name:'Trà chanh', price:10000, tier:'blue', icon:'🍋', caffeine:true},
-    {name:'Nước lọc chanh', price:8000, tier:'blue', icon:'💧', caffeine:false},
-    {name:'Trà gừng', price:10000, tier:'blue', icon:'🫚', caffeine:false},
-    {name:'Trà atiso', price:12000, tier:'blue', icon:'🍵', caffeine:false},
-    {name:'Nước mía', price:12000, tier:'blue', icon:'🥤', caffeine:false},
-    {name:'Siro đá bào', price:10000, tier:'blue', icon:'🍧', caffeine:false},
+    {name:'Trà đá', price:3000, tier:'blue', caffeine:false,
+      art:{vessel:'cup', liquid:'#caa15c', level:0.55, ice:true, straw:'#ffffff'}},
+    {name:'Trà tắc', price:10000, tier:'blue', caffeine:true,
+      art:{vessel:'cup', liquid:'#e0b23c', level:0.6, ice:true, garnish:'kumquat', straw:'#ffffff'}},
+    {name:'Trà chanh', price:10000, tier:'blue', caffeine:true,
+      art:{vessel:'cup', liquid:'#d9c65a', level:0.6, ice:true, garnish:'lemon', straw:'#ffffff'}},
+    {name:'Nước lọc chanh', price:8000, tier:'blue', caffeine:false,
+      art:{vessel:'cup', liquid:'#eaf6f6', level:0.6, liquidOpacity:0.55, ice:true, garnish:'lemon', straw:'#ffffff'}},
+    {name:'Trà gừng', price:10000, tier:'blue', caffeine:false,
+      art:{vessel:'cup', liquid:'#c98a3e', level:0.55, garnish:'ginger', straw:'#ffffff'}},
+    {name:'Trà atiso', price:12000, tier:'blue', caffeine:false,
+      art:{vessel:'cup', liquid:'#caa0c7', level:0.55, garnish:'flower', straw:'#ffffff'}},
+    {name:'Nước mía', price:12000, tier:'blue', caffeine:false,
+      art:{vessel:'cup', liquid:'#e8e3a0', level:0.6, ice:true, straw:'#ffffff'}},
+    {name:'Siro đá bào', price:10000, tier:'blue', caffeine:false,
+      art:{vessel:'bowl', base:'#eef2f2', topping:'#ff6b81'}},
 
     // ---- purple ----
-    {name:'Cà phê đen đá', price:18000, tier:'purple', icon:'☕', caffeine:true},
-    {name:'Cà phê sữa đá', price:20000, tier:'purple', icon:'☕', caffeine:true},
-    {name:'Sữa đậu nành', price:15000, tier:'purple', icon:'🥛', caffeine:false},
-    {name:'Sữa chua đá', price:18000, tier:'purple', icon:'🍦', caffeine:false},
-    {name:'Nước dừa tươi', price:20000, tier:'purple', icon:'🥥', caffeine:false},
-    {name:'Cacao sữa đá', price:22000, tier:'purple', icon:'🍫', caffeine:true},
-    {name:'Trà đào túi lọc', price:18000, tier:'purple', icon:'🍑', caffeine:true},
-    {name:'Chanh muối', price:15000, tier:'purple', icon:'🍋', caffeine:false},
+    {name:'Cà phê đen đá', price:18000, tier:'purple', caffeine:true,
+      art:{vessel:'cup', liquid:'#3b2415', level:0.55, ice:true, straw:'#3b2415'}},
+    {name:'Cà phê sữa đá', price:20000, tier:'purple', caffeine:true,
+      art:{vessel:'cup', layers:[['#3b2415',0.35],['#caa47a',0.25]], level:0.6, ice:true, straw:'#ffffff'}},
+    {name:'Sữa đậu nành', price:15000, tier:'purple', caffeine:false,
+      art:{vessel:'cup', liquid:'#f3ecd8', level:0.6, straw:'#ffffff'}},
+    {name:'Sữa chua đá', price:18000, tier:'purple', caffeine:false,
+      art:{vessel:'cup', liquid:'#fbfbf5', level:0.55, ice:true, straw:'#ffffff'}},
+    {name:'Nước dừa tươi', price:20000, tier:'purple', caffeine:false,
+      art:{vessel:'coconut'}},
+    {name:'Cacao sữa đá', price:22000, tier:'purple', caffeine:true,
+      art:{vessel:'cup', liquid:'#5b3a29', level:0.55, ice:true, foam:'#e9d9c4', straw:'#ffffff'}},
+    {name:'Trà đào túi lọc', price:18000, tier:'purple', caffeine:true,
+      art:{vessel:'cup', liquid:'#e8935a', level:0.6, ice:true, garnish:'peach', straw:'#ffffff'}},
+    {name:'Chanh muối', price:15000, tier:'purple', caffeine:false,
+      art:{vessel:'cup', liquid:'#dede9a', level:0.6, ice:true, garnish:'lemon', rimSalt:true, straw:'#ffffff'}},
 
     // ---- pink ----
-    {name:'Trà sữa trân châu', price:30000, tier:'pink', icon:'🧋', caffeine:true},
-    {name:'Sinh tố bơ', price:30000, tier:'pink', icon:'🥑', caffeine:false},
-    {name:'Sinh tố xoài', price:28000, tier:'pink', icon:'🥭', caffeine:false},
-    {name:'Nước ép cam', price:30000, tier:'pink', icon:'🍊', caffeine:false},
-    {name:'Chè đậu xanh', price:25000, tier:'pink', icon:'🍮', caffeine:false},
-    {name:'Chè ba màu', price:25000, tier:'pink', icon:'🍨', caffeine:false},
-    {name:'Trà đào cam sả', price:35000, tier:'pink', icon:'🍑', caffeine:true},
-    {name:'Bạc xỉu', price:25000, tier:'pink', icon:'☕', caffeine:true},
+    {name:'Trà sữa trân châu', price:30000, tier:'pink', caffeine:true,
+      art:{vessel:'cup', liquid:'#c9a06a', level:0.65, boba:true, straw:'#ffffff', strawWide:true}},
+    {name:'Sinh tố bơ', price:30000, tier:'pink', caffeine:false,
+      art:{vessel:'cup', liquid:'#9fbf5a', level:0.6, straw:'#ffffff', strawWide:true}},
+    {name:'Sinh tố xoài', price:28000, tier:'pink', caffeine:false,
+      art:{vessel:'cup', liquid:'#f2a93c', level:0.6, straw:'#ffffff', strawWide:true}},
+    {name:'Nước ép cam', price:30000, tier:'pink', caffeine:false,
+      art:{vessel:'cup', liquid:'#f3901f', level:0.6, straw:'#ffffff'}},
+    {name:'Chè đậu xanh', price:25000, tier:'pink', caffeine:false,
+      art:{vessel:'bowl', base:'#e8d98a', beans:true, topping:'#fbfbf5'}},
+    {name:'Chè ba màu', price:25000, tier:'pink', caffeine:false,
+      art:{vessel:'cup', layers:[['#7ee08a',0.18],['#f2d94e',0.18],['#ff6b81',0.18]], level:0.54, ice:true, foam:'#fbfbf5', straw:'#ffffff'}},
+    {name:'Trà đào cam sả', price:35000, tier:'pink', caffeine:true,
+      art:{vessel:'cup', liquid:'#f0873f', level:0.6, ice:true, garnish:'mint', straw:'#ffffff'}},
+    {name:'Bạc xỉu', price:25000, tier:'pink', caffeine:true,
+      art:{vessel:'cup', layers:[['#caa47a',0.15],['#f3ecd8',0.45]], level:0.6, straw:'#ffffff'}},
 
     // ---- red ----
-    {name:'Cà phê trứng', price:45000, tier:'red', icon:'☕', caffeine:true},
-    {name:'Chè khúc bạch', price:45000, tier:'red', icon:'🍨', caffeine:false},
-    {name:'Chè Thái', price:40000, tier:'red', icon:'🍨', caffeine:false},
-    {name:'Matcha đá xay', price:55000, tier:'red', icon:'🍵', caffeine:true},
-    {name:'Trà sữa full topping', price:50000, tier:'red', icon:'🧋', caffeine:true},
-    {name:'Cold brew', price:55000, tier:'red', icon:'☕', caffeine:true},
-    {name:'Nước ép detox', price:45000, tier:'red', icon:'🥗', caffeine:false},
-    {name:'Chè cung đình Huế', price:50000, tier:'red', icon:'🍮', caffeine:false},
+    {name:'Cà phê trứng', price:45000, tier:'red', caffeine:true,
+      art:{vessel:'smallcup', liquid:'#3b2415', foam:'#f2c94c', foamSwirl:true}},
+    {name:'Chè khúc bạch', price:45000, tier:'red', caffeine:false,
+      art:{vessel:'bowl', base:'#eaf6f6', garnish:'goji'}},
+    {name:'Chè Thái', price:40000, tier:'red', caffeine:false,
+      art:{vessel:'cup', liquid:'#eaf6f6', level:0.55, jellyColors:['#ff6b81','#7ee08a','#f2d94e'], foam:'#fbfbf5', straw:'#ffffff'}},
+    {name:'Matcha đá xay', price:55000, tier:'red', caffeine:true,
+      art:{vessel:'cup', liquid:'#6fae3e', level:0.6, foam:'#fbfbf5', straw:'#ffffff', strawWide:true}},
+    {name:'Trà sữa full topping', price:50000, tier:'red', caffeine:true,
+      art:{vessel:'cup', liquid:'#c9a06a', level:0.65, boba:true, jellyColors:['#ff6b81','#f2d94e'], straw:'#ffffff', strawWide:true, dome:true}},
+    {name:'Cold brew', price:55000, tier:'red', caffeine:true,
+      art:{vessel:'cup', liquid:'#241209', level:0.6, ice:true, straw:'#241209'}},
+    {name:'Nước ép detox', price:45000, tier:'red', caffeine:false,
+      art:{vessel:'cup', liquid:'#5fae4a', level:0.6, garnish:'mint', straw:'#ffffff'}},
+    {name:'Chè cung đình Huế', price:50000, tier:'red', caffeine:false,
+      art:{vessel:'bowl', base:'#f3ecd8', jellyColors:['#ff6b81','#7ee08a','#f2d94e','#caa06a'], garnish:'lotus'}},
 
     // ---- gold: dat, hiem ----
-    {name:'Cà phê chồn', price:89000, tier:'gold', icon:'☕', caffeine:true},
-    {name:'Latte single-origin', price:75000, tier:'gold', icon:'☕', caffeine:true},
-    {name:'Trà sữa premium full topping', price:79000, tier:'gold', icon:'🧋', caffeine:true},
-    {name:'Chè sen long nhãn cao cấp', price:95000, tier:'gold', icon:'🌸', caffeine:false},
+    {name:'Cà phê chồn', price:89000, tier:'gold', caffeine:true,
+      art:{vessel:'smallcup', liquid:'#2a1608', rimGold:true}},
+    {name:'Latte single-origin', price:75000, tier:'gold', caffeine:true,
+      art:{vessel:'smallcup', liquid:'#5b3a29', foam:'#fbfbf5', foamSwirl:true, rimGold:true}},
+    {name:'Trà sữa premium full topping', price:79000, tier:'gold', caffeine:true,
+      art:{vessel:'cup', liquid:'#c9a06a', level:0.65, boba:true, foam:'#fbfbf5', rimGold:true, straw:'#ffffff', strawWide:true, dome:true}},
+    {name:'Chè sen long nhãn cao cấp', price:95000, tier:'gold', caffeine:false,
+      art:{vessel:'bowl', base:'#f7ecd0', garnish:'lotus', rimGold:true, jellyColors:['#f2d94e','#fbfbf5']}},
   ];
 
   const fmtPrice = p => p.toLocaleString('vi-VN') + 'đ';
@@ -340,7 +536,7 @@
       const tile = document.createElement('div');
       tile.className = 'tile';
       tile.style.setProperty('--tier-color', TIER_COLOR[d.tier]);
-      tile.innerHTML = `<div class="icon">${d.icon}</div><div class="name">${d.name}</div><div class="price">${fmtPrice(d.price)}</div>`;
+      tile.innerHTML = `<div class="icon">${drinkSVG(d.art)}</div><div class="name">${d.name}</div><div class="price">${fmtPrice(d.price)}</div>`;
       el.appendChild(tile);
     });
     return el;
@@ -393,7 +589,7 @@
     const c = TIER_COLOR[drink.tier];
     const res = document.getElementById('result');
     res.style.setProperty('--tier-color', c);
-    document.getElementById('resIcon').textContent = drink.icon;
+    document.getElementById('resIcon').innerHTML = drinkSVG(drink.art);
     document.getElementById('resName').textContent = drink.name;
     document.getElementById('resTier').textContent = TIER_LABEL[drink.tier] + ' · ' + fmtPrice(drink.price);
     document.getElementById('resTier').style.background = c;

@@ -1,6 +1,6 @@
 # giodauongvietroulette
 
-Vietnamese drink case-opening parody. 36 drinks, budget and no-caffeine filters, in-browser synthesized sound (no mirrored game assets), Google Maps + GrabFood search for the chosen drink. No payments or backend records.
+Vietnamese drink case-opening parody. 36 drinks each with distinct hand-drawn SVG artwork, budget and no-caffeine filters, in-browser synthesized sound (no mirrored game assets), Google Maps + GrabFood search for the chosen drink. No payments or backend records.
 
 ## Timing reference
 
@@ -24,7 +24,7 @@ Items within a tier have equal probability. Filters (budget, no-caffeine) remove
 
 ## Assets
 
-No external game assets are used. Drink icons are emoji; the "pop" sound on reveal is synthesized in-browser with the Web Audio API (a short sine-wave chirp), so there is nothing to license or mirror.
+No external images, photos, or game assets are used. Each of the 36 drinks has a small hand-drawn SVG generated at runtime from a per-drink config (cup or bowl shape, liquid color/layers, ice, boba, jelly, foam, straw, garnish) — so a milk tea actually shows pearls at the bottom, a chè ba màu shows its three layers, cà phê trứng shows egg foam on a small cup, nước dừa tươi is drawn as a coconut, etc. Everything is vector code, nothing to license or mirror. The "pop" sound on reveal is likewise synthesized in-browser with the Web Audio API (a short sine-wave chirp).
 
 ## Find or order the chosen drink
 
